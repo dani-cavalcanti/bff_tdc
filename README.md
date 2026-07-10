@@ -25,7 +25,7 @@
 
 ## 🧠 Sobre a palestra
 
-Com a adoção massiva de ferramentas de IA generativa (como o GitHub Copilot) no fluxo de desenvolvimento, observamos um aumento na velocidade de escrita de código e na métrica de cobertura de testes tradicional (Line/Branch Coverage). No entanto, a cobertura quantitativa não se traduz necessariamente em eficácia qualitativa, gerando cenários de **"falso positivo"** onde o pipeline permanece verde, mas bugs lógicos e quebras de contrato chegam ao ambiente produtivo, elevando o MTTR e impactando a estabilidade.
+Com a adopção massiva de ferramentas de IA generativa (como o GitHub Copilot) no fluxo de desenvolvimento, observamos um aumento na velocidade de escrita de código e na métrica de cobertura de testes tradicional (Line/Branch Coverage). No entanto, a cobertura quantitativa não se traduz necessariamente em eficácia qualitativa, gerando cenários de **"falso positivo"** onde o pipeline permanece verde, mas bugs lógicos e quebras de contrato chegam ao ambiente produtivo, elevando o MTTR e impactando a estabilidade.
 
 Esta aplicação demonstra ao vivo como três técnicas avançadas expõem o que a IA não consegue testar — usando como pano de fundo um cenário de **fintech de câmbio digital**, onde erro de precisão e quebra de contrato não são só bug, são dinheiro do cliente:
 
@@ -56,9 +56,11 @@ Content-Type: application/json
   "tipoConta": "OURO",
   "moedaDestino": "USD"
 }
+
 ```
 
 **Resposta esperada:**
+
 ```json
 {
   "valorOriginalBRL": 1000.00,
@@ -68,12 +70,13 @@ Content-Type: application/json
   "auditoriaId": "a1b2c3d4-...",
   "dataConversao": "2026-07-10T14:32:00"
 }
+
 ```
 
 **Tabela de spreads por tier:**
 
 | Tier | Spread |
-|:---:|:---:|
+| --- | --- |
 | `PRATA` | 2,50% |
 | `OURO` | 1,50% |
 | `PLATINA` | 0,50% |
@@ -85,7 +88,7 @@ A implementação carrega **3 bugs intencionais** que os testes felizes não det
 ## 🐛 Os 3 bugs intencionais
 
 | # | Bug no código | Por que passa despercebido | Detectado por |
-|:---:|:---|:---|:---:|
+| --- | --- | --- | --- |
 | 1 | Conta crítica de conversão feita em `double` em vez de `BigDecimal` (`CurrencyExchangeService`) | Valores redondos (1000.00, 500.00) não expõem o erro de arredondamento binário | 🔬 jqwik |
 | 2 | `valorBRL` sem validação de negativo + `cotacoes.getOrDefault(moeda, ZERO)` mascarando divisão por zero | Testes felizes sempre mandam `"USD"` e valores positivos | 💀 PITest · 🔬 jqwik |
 | 3 | `ConversionResponse` serializado em camelCase pelo Jackson, enquanto o pact do app mobile espera snake_case; `auditoriaId` pode chegar `null` (exceção engolida em `AuditService`) | Teste de unidade do Controller valida o objeto Java, não o JSON real contra o contrato | 📜 Pact JVM |
@@ -120,10 +123,8 @@ src/
     │   └── ConversionPactConsumerTest.java           ← 📜 Ato 4: gera contrato JSON
     └── provider/
         └── ConversionProviderPactTest.java           ← 🔒 Ato 4: verifica contrato contra o app real
+
 ```
-
-> Os testes ainda não foram gerados neste repositório — a pasta acima é o roteiro dos próximos atos da palestra.
-
 ---
 
 ## 🚀 Pré-requisitos
@@ -131,6 +132,17 @@ src/
 ```bash
 java -version   # deve mostrar 21+
 mvn -version    # deve mostrar 3.9+
+
+```
+
+## 📦 Clonando o Repositório
+
+Para baixar o projeto, você pode acessar diretamente o repositório [dani-cavalcanti/bff_tdc](https://github.com/dani-cavalcanti/bff_tdc.git) ou clonar executando o comando abaixo no seu terminal:
+
+```bash
+git clone https://github.com/dani-cavalcanti/bff_tdc.git
+cd bff_tdc
+
 ```
 
 ---
@@ -142,6 +154,7 @@ mvn -version    # deve mostrar 3.9+
 ```bash
 mvn spring-boot:run
 # → http://localhost:8080/api/v1/conversoes
+
 ```
 
 ### Exemplo de chamada
@@ -150,6 +163,7 @@ mvn spring-boot:run
 curl -X POST http://localhost:8080/api/v1/conversoes \
   -H "Content-Type: application/json" \
   -d '{"valorBRL": 1000.00, "tipoConta": "OURO", "moedaDestino": "USD"}'
+
 ```
 
 ---
@@ -163,6 +177,7 @@ mvn test -Dtest=CurrencyExchangeServiceCopilotTest
 # Ligar o PITest — mutantes sobrevivem apesar do JUnit verde 💀
 mvn test-compile org.pitest:pitest-maven:mutationCoverage
 # → Abrir: target/pit-reports/index.html
+
 ```
 
 ---
@@ -172,9 +187,11 @@ mvn test-compile org.pitest:pitest-maven:mutationCoverage
 ```bash
 # Propriedade vai FALHAR com counterexample: valorBRL negativo ou moedaDestino inválido 💥
 mvn test -Dtest=CurrencyExchangeServicePropertyTest
+
 ```
 
 Output esperado:
+
 ```
 PropertyFailureException: Property falsified
   Shrunk Sample:
@@ -183,6 +200,7 @@ PropertyFailureException: Property falsified
     moedaDestino  = "eur"
 
   cotacoes.getOrDefault("eur", ZERO) → divisão por zero em double → NaN/Infinity!
+
 ```
 
 ---
@@ -199,6 +217,7 @@ cp target/pacts/MobileApp-NanpayBFF.json src/test/resources/pacts/
 
 # 3. Verificar o contrato contra o app real (Provider)
 mvn test -Dtest=ConversionProviderPactTest
+
 ```
 
 ---
@@ -218,9 +237,8 @@ mvn test -Dtest=ConversionProviderPactTest
   ┌──────────────────────────────────────────────────────────┐
   │  🤖 Unitário · JUnit 5 (estilo Copilot)                  │  ← base: rápidos, isolados
   └──────────────────────────────────────────────────────────┘
-```
 
----
+```
 
 <div align="center">
 
@@ -230,15 +248,16 @@ mvn test -Dtest=ConversionProviderPactTest
 
 **"A IA gera código médio para inputs médios. Você é responsável pelos extremos."**
 
-<br/>
+
 
 👩🏽‍💻 **Dani Cavalcanti** · Quality Engineer & SDET
 
 [![Instagram](https://img.shields.io/badge/@qadanicavalcanti-E4405F?style=flat-square&logo=instagram&logoColor=white)](https://instagram.com/qadanicavalcanti)
 [![LinkedIn](https://img.shields.io/badge/dani--cavalcanti--qa-0A66C2?style=flat-square&logo=linkedin&logoColor=white)](https://linkedin.com/in/dani-cavalcanti-qa)
 
-<br/>
+
 
 <sub>Feito com 💜 para a comunidade de Quality Engineering · Trilha DevTest e IA</sub>
 
 </div>
+
